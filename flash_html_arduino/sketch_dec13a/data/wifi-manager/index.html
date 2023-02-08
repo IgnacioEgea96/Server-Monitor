@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Wifi Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+    <style>
+      html, body {
+          height: 100%;
+      }
+
+      html {
+          background-color: #0F2027;
+      }
+
+      body {
+          margin: 0;
+
+          font-family: Verdana, sans-serif;
+          font-weight: 300;
+          color: #fff;
+
+          background: linear-gradient(to bottom, #2C5364, #203A43, #0F2027);
+      }
+
+      body, #manager {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+      }
+
+      button {
+          margin-top: 12px;
+          padding: 8px 14px;
+
+          border: none;
+          border-radius: 3px;
+
+          font-family: Verdana, sans-serif;
+          font-size: 11px;
+          font-weight: 700;
+          text-shadow: 0 1px 0 rgba(19, 74, 70, .4);
+          text-transform: uppercase;
+          color: #fff;
+
+          background-color: #7AB893;
+      }
+
+      h1 {
+          font-size: 22px;
+          margin: 0 0 20px 0;
+      }
+
+      h2 {
+          font-size: 16px;
+          margin: 0;
+      }
+
+      span {
+          display: flex;
+          margin-bottom: 6px;
+      }
+
+      input, select, label {
+          box-sizing: border-box;
+          height: 34px;
+      }
+
+      input, select {
+          width: 160px;
+
+          border: 0;
+          border-top-right-radius: 3px;
+          border-bottom-right-radius: 3px;
+          border-bottom-left-radius: 0px;
+          border-top-left-radius: 0px;
+
+          outline: 0;
+
+          font-family: Verdana, sans-serif;
+          font-size: 11px;
+          font-weight: 400;
+          text-indent: 8px;
+          color: #377D6A;
+
+          background: #efefef;
+      }
+
+      input::-webkit-input-placeholder {
+          color: #aaa;
+      }
+
+      label {
+          width: 120px;
+          padding: 10px 14px;
+
+          display: inline-block;
+
+          border-top-right-radius: 0px;
+          border-bottom-right-radius: 0px;
+          border-bottom-left-radius: 3px;
+          border-top-left-radius: 3px;
+
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: rgb(42, 59, 49);
+          text-shadow: 0 1px 0 rgba(255, 255, 255, .4);
+
+          background: #7AB893;
+      }
+
+      #custom-ssid {
+          display: none;
+      }
+
+      #confirmation {
+          display: none;
+
+          position: absolute;
+          width: 275px;
+          padding: 24px;
+
+          border-radius: 3px;
+
+          font-size: 12px;
+          color: rgb(42, 59, 49);
+
+          background: #7AB893;
+          box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+      }
+
+      #confirmation p:last-child {
+          margin-bottom: 0;
+      }
+
+      #loader {
+          display: none;
+
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          border: 8px solid;
+          border-color: #efefef;
+          border-right-color: #7AB893;
+          animation: spinner 2s infinite linear;
+      }
+
+      @keyframes spinner {
+        to { transform: rotate(1turn) }
+      }
+
+    </style>
+    <script>
+      function getAvailableNetworks() {
+          const xhr = new XMLHttpRequest();
+
+          xhr.addEventListener("load", () => onNetworksLoaded(xhr.responseText));
+          xhr.open('GET', '/networks');
+          xhr.send();
+      }
+
+      function onNetworksLoaded(data) {
+          const networks = JSON.parse(data);
+
+          const select = document.getElementById('network');
+          select.disabled = false;
+          select.remove(0);
+
+          for (const network of networks) {
+              const option = document.createElement("option");
+              option.value = network;
+              option.text = network;
+
+              select.appendChild(option);
+          }
+
+          const option = document.createElement("option");
+          option.value = '';
+          option.text = 'Other network';
+
+          select.appendChild(option);
+
+          onSelectedNetworkChanged(select.value);
+      }
+
+      function onSelectedNetworkChanged(network) {
+          const wrapper = document.getElementById('custom-ssid');
+          const ssid = document.getElementById('ssid');
+
+          const display = network.length ? 'none' : 'flex';
+          const value = network.length ? network : '';
+
+          wrapper.style.display = display;
+          ssid.value = value;
+      }
+
+      function saveNetworkCredentials() {
+	  const timer = document.getElementById('timer').value;
+          if(timer>1800 || timer<20){
+	    document.getElementById('timer').value = ""
+	    document.getElementById('timer').placeholder = "Entre 20 y 1800"
+	    return;
+	  }
+          const manager = document.getElementById('manager');
+          const loader = document.getElementById('loader');
+
+          manager.style.display = 'none';
+          loader.style.display = 'inline';
+
+          const payload = getCredentialsPayload();
+          const xhr = new XMLHttpRequest();
+
+          xhr.addEventListener("load", () => onNetworkCredentialsSaved(xhr.status));
+          xhr.open('PUT', '/credentials');
+          xhr.send(payload);
+      }
+
+      function getCredentialsPayload() {
+          const ssid = document.getElementById('ssid').value;
+          const password = document.getElementById('password').value;
+          const hostname = document.getElementById('hostname').value;
+          const timer = document.getElementById('timer').value;
+
+          const payload = new FormData();
+
+          payload.append('ssid', ssid);
+          payload.append('password', password);
+          payload.append('hostname', hostname);
+          payload.append('timer', timer);
+
+          return payload;
+      }
+
+      function onNetworkCredentialsSaved(status) {
+          const loader = document.getElementById('loader');
+          loader.style.display = 'none';
+
+          if (status === 204) {
+              const confirmation = document.getElementById('confirmation');
+              confirmation.style.display = 'inline';
+          } else {
+              alert('Error saving network credentials');
+          }
+      }
+
+      document.addEventListener('DOMContentLoaded', getAvailableNetworks);
+    </script>
+  </head>
+  <body>
+
+      <div id="manager">
+          <h1>Server Hypervisor</h1>
+
+          <span>
+            <label for="network">Red</label>
+            <select id="network" onchange="onSelectedNetworkChanged(this.value)" disabled>
+              <option>Loading networks</option>
+            </select>
+          </span>
+
+          <span id="custom-ssid">
+            <label for="ssid">WLAN SSID</label>
+            <input id="ssid" type="text" placeholder="Name of the network" />
+          </span>
+
+          <span>
+            <label for="password">Password</label>
+            <input id="password" type="password" placeholder="Solo si es requerida" />
+          </span>
+
+          <span>
+            <label for="hostname">Hostname</label>
+            <input id="hostname" type="text" placeholder="Solo si es requerido" />
+          </span>
+
+          <span>
+            <label for="timer">Tiempo (seg)</label>
+            <input id="timer" type="number" min="10" max="1800" placeholder="Por defecto 5min" />
+          </span>
+
+          <button onclick="saveNetworkCredentials()">Guardar</button>
+      </div>
+
+      <div id="loader"></div>
+
+      <div id="confirmation">
+        <h2>Credenciales guardadas!</h2>
+        <p>
+          El dispositivo se va a reiniciar e intentar conectarse
+          a la red WiFi con las credenciales otrogadas.
+        </p>
+        <p>
+          En caso que el dispositivo no se pueda conectar por errores en las credenciales, vuelva a
+          realizar el mismo procedimiento.
+        </p>
+      </div>
+
+  </body>
+</html>
