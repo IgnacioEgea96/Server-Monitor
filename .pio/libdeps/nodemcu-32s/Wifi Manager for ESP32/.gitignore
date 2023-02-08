@@ -1,0 +1,6 @@
+.pio
+.vscode
+
+interface/.parcel-cache
+interface/dist
+interface/node_modules

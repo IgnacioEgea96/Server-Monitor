@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "convert": "parcel build ./src/index.html && node ./src/convert.js"
+  },
+  "devDependencies": {
+    "@parcel/compressor-gzip": "^2.7.0",
+    "parcel": "^2.7.0"
+  }
+}
